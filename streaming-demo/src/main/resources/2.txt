@@ -1,0 +1,42 @@
+    val sendThread = new Thread(new Runnable {
+      override def run(): Unit = {
+        val socket = new ServerSocket(9000)
+        val clientSocket = socket.accept()
+        val sendStream = new ObjectOutputStream(clientSocket.getOutputStream)
+        for (i <- 0 until 20) {
+          val tmstp = System.currentTimeMillis()
+          for (j <- 0 to i) {
+            val msg = s"${tmstp} a${j}\n"
+            sendStream.writeUTF(msg)
+          }
+          sendStream.flush()
+          Thread.sleep(1000)
+        }
+      }
+    })
+
+    val streamingThread = new Thread(new Runnable {
+      override def run(): Unit = {
+        val env = StreamExecutionEnvironment.getExecutionEnvironment
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+        val stream = env.socketTextStream("localhost", 9000, '\n', 3)
+        val keyedStream = stream.assignTimestampsAndWatermarks(
+          new BoundedOutOfOrdernessTimestampExtractor[String](Time.milliseconds(0)) {
+            override def extractTimestamp(line: String): Long = {
+              val pattern = "\\d+".r
+              val sysTime = pattern.findFirstMatchIn(line).getOrElse("0").toString.toLong
+              sysTime
+            }
+          }
+        ).map(line => (line.split("\\s+")(1), 1)).keyBy(0)
+        val windowedStream = keyedStream.window(SlidingEventTimeWindows.of(Time.seconds(3),Time.seconds(2)))
+        windowedStream.reduce((t1, t2) => (t1._1, t1._2 + t2._2)).print()
+        env.execute("SlidingEventTimeWindows")
+      }
+    })
+
+    streamingThread.start()
+    sendThread.start()
+
+    streamingThread.join()
+    sendThread.join()

@@ -10,11 +10,16 @@ import org.apache.flink.api.java.io.TextInputFormat
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.json4s.DefaultFormats
 import org.json4s.jackson.Serialization.write
 import org.junit.Test
+
+import scala.util.Random
+
+case class SensorReading(id:String, timestamp:Long, temperature:Double)
 
 class Source {
 
@@ -105,7 +110,7 @@ class Source {
         val tmstp = System.currentTimeMillis()
         val tags = Map[String, String]("app" -> "hadoop cluster", "ip" -> "hadoop01")
         val fields = Map[String,Double]("used_percent" -> 90d,"max"->27244873d,"used"->17244873d,"init"->27244873d)
-        val metric = Metric(name,tmstp,tags,fields)
+        val metric = new Metric(name,tmstp,tags,fields)
 
         val topic = "metric_test"
         val partition = null
@@ -163,6 +168,53 @@ class Source {
     val sqlStream = env.addSource(new MysqlSource(props, sql))
     sqlStream.print()
     env.execute("mysql data source")
+  }
+
+  /**
+   * 自定义数据源，充当模拟数据
+   */
+  @Test
+  def sourceFunc(): Unit ={
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val sourceFunction = new SourceFunction[SensorReading] {
+      // 控制是否继续产生数据开关
+      var running: Boolean = true
+
+      // 模拟数据收集间隔
+      val collectInterval:Long = 1000l
+
+      // 收集数据
+      override def run(sourceContext: SourceFunction.SourceContext[SensorReading]): Unit = {
+        val rand = new Random()
+
+        // 模拟一轮收集操作
+        val baseSream = 1.to(10).map(
+          i => ("sensor_" + i, 60 + rand.nextGaussian() * 20) // 在 60 基础上添加随机高斯波动
+        )
+
+        while(running){ // 循环控制一直产生数据
+          val randStream = baseSream.map(
+            data => (data._1, data._2 + rand.nextGaussian()) // 在已经有的高斯波动基础上添加更小的高斯波动
+          )
+          val tmstp = System.currentTimeMillis()
+          randStream.foreach(
+            data => sourceContext.collect(SensorReading(data._1,tmstp,data._2)) // 发射数据
+          )
+          Thread.sleep(collectInterval)
+        }
+      }
+
+      override def cancel(): Unit = {
+        running = false
+      }
+    }
+
+    val mockStream = env.addSource(sourceFunction)
+
+    mockStream.print()
+
+    env.execute("sourceFunc")
   }
 
 

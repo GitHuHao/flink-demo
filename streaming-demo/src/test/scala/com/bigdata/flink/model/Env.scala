@@ -1,6 +1,9 @@
 package com.bigdata.flink.model
 
 import com.bigdata.flink.suit.CommonSuit
+import org.apache.flink.api.scala._
+import org.apache.flink.api.java.utils.ParameterTool
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.junit.Test
 
@@ -49,6 +52,28 @@ class Env {
     env.execute("create local env")
   }
 
+  // --host localhost --port 9000
+  @Test
+  def createEnvironmentWithWebUI(): Unit ={
+//    val params = ParameterTool.fromArgs(args)
+//    val host = params.get("host")
+//    val port = params.getInt("port")
+    val host = "localhost"
+    val port = 9000
+
+    val conf = new Configuration()
+    val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf)
+    val textDataStream = env.socketTextStream(host, port)
+
+    textDataStream.flatMap(_.split("\\s+"))
+      .filter(_.nonEmpty)
+      .map((_,1))
+      .keyBy(0)
+      .sum(1)
+      .print()
+
+    env.execute()
+  }
 
 
 }

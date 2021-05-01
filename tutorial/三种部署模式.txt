@@ -1,0 +1,36 @@
+# Local-Cluster模式 (单点，测试使用)
+1) 启动单节点 cd local; bin/start-cluster.sh
+2) 启动socket监听 nc -l 9001
+3) bin/flink run -j ../job/streaming-wordcount-jar-with-dependencies.jar -c com.bigdata.flink.wc.StreamWordCount --host hadoop01 --port 9001
+4) http://hadoop01:8081 WEB-UI查看
+
+# Standalone-Cluster模式（多点，自己管理资源，分布式环境下测试）
+1) 启动集群 cd standalone; bin/start-cluster.sh
+2) 启动socket监听 nc -l 9001
+3) bin/flink run -h hadoop01:8081 -j ../job/streaming-wordcount-jar-with-dependencies.jar -c com.bigdata.flink.wc.StreamWordCount --host hadoop01 --port 9001
+
+# Yarn-Per-Job 模式(各提交之间相互隔离，适合需要长时间运行，对启动延迟不敏感app)
+1) 启动yarn: hadoopStart
+2) 检查jar依赖的flink版本信息
+3) 启动socket监听 nc -l 9001
+4) cd yarn; bin/flink run -t yarn-per-job -j ../job/streaming-wordcount-jar-with-dependencies.jar -c com.bigdata.flink.wc.StreamWordCount --host hadoop01 --port 9001
+5) yarn WebUI 点击 ApplicationMaster 自动跳转Flink WebUI界面查看日志
+
+eg: -yqu 提交到指定队列
+bin/flink run -t yarn-per-job -yqu default -j ../job/streaming-wordcount-jar-with-dependencies.jar -c com.bigdata.flink.wc.StreamWordCount --host hadoop01 --port 9001
+
+# Yarn-Session 模式(多个任务共用一个session，app停机，session依旧存活，适合需要频繁提交小任务对启动延迟比较敏感任务)
+1) 启动yarn: hadoopStart
+2) 检查jar依赖的flink版本信息
+3) 启动socket监听 nc -l 9001
+4) 启动yarn-session: cd yarn; bin/yarn-session.sh start
+5) 检查 http://hadoop01:8088 YARN webui界面，是否有对应 Flink-SessionApp, 保存application-id
+6) 提交作业（自动感知yarn-session） bin/flink run -j ../job/streaming-wordcount-jar-with-dependencies.jar -c com.bigdata.flink.wc.StreamWordCount --host hadoop01 --port 9000
+7) 亦可手动指定yarn-session ID: bin/flink run -t yarn-session -Dyarn.application.id=$application-id -j ../job/streaming-wordcount-jar-with-dependencies.jar -c com.bigdata.flink.wc.StreamWordCount --host hadoop01 --port 9000
+
+# Yarn-Application模式(yarn-session和yarn-per-job中提交作业的main方法在env.execute执行之前代码都是在deployer上执行，其中包括比较重的streamGraph转换为jobGraph，deployer节点负载过高，需要转移到jobmanager上运行，其余与yarn-per-job一致)
+1) 启动yarn: hadoopStart
+2) 检查jar依赖的flink版本信息
+3) 启动socket监听 nc -l 9001
+4) cd yarn; bin/flink run-application -t yarn-application -j ../job/streaming-wordcount-jar-with-dependencies.jar -c com.bigdata.flink.wc.StreamWordCount --host hadoop01 --port 9001
+5) yarn WebUI 点击FlinkApplicationCluster >  ApplicationMaster 自动跳转Flink WebUI界面查看日志

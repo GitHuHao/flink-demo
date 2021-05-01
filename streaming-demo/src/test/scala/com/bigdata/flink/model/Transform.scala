@@ -1,7 +1,7 @@
 package com.bigdata.flink.model
 
 import com.bigdata.flink.suit.CommonSuit
-import com.bigdata.flink.transform.{FilterFunc, FlatMapFunc, FoldFunc, JoinFunc, KeyFunc, MapFunc, ReduceFunc}
+import com.bigdata.flink.transform.{FilterFunc, FlatMapFunc, FoldFunc, JoinFunc, KeyFunc, MapFunc, ReduceFunc, RichFilterFunc, RichFlatMapFunc, RichMapFunc}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.scala.ExecutionEnvironment
@@ -55,6 +55,9 @@ class Transform {
    * def connect[T2](dataStream: DataStream[T2]): ConnectedStreams[T, T2]
    *  1.连接两个流，可以是不同数据类型，被连接之后，各流仍保持各自的独立性
    *  2.先迭代完第一个，再迭代第二个
+   * Connect与 Union 区别：
+   * 1． Union之前两个流的类型必须是一样，Connect可以不一样，在之后的coMap中再去调整成为一样的。
+   * 2. Connect只能操作两个流，Union可以操作多个。
    */
   @Test
   def connect(): Unit = {
@@ -195,7 +198,6 @@ class Transform {
    */
   @Test
   def extensions(): Unit = {
-
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(Point(1, 2), Point(3, 4), Point(5, 6))
     ds.filterWith {
@@ -248,6 +250,21 @@ class Transform {
       .print()
   }
 
+  /**
+   * RichXXXFunction 可以获取生命周期相关函数 open() close()，并可以通过上下文context()获取并行度、任务名称、state状态。
+   * open()方法是rich function的初始化方法，当一个算子例如map或者filter被调用之前open()会被调用。
+   * close()方法是生命周期中的最后一个调用的方法，做一些清理工作。
+   * getRuntimeContext()方法提供了函数的RuntimeContext的一些信息，例如函数执行的并行度，任务的名字，以及state状态
+   */
+  @Test
+  def richMapFunc(): Unit ={
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val richMap = new RichMapFunc()
+    env.fromElements("a", "b", "c")
+      .map(richMap)
+      .print()
+  }
+
   @Test
   def flatMapFunc(): Unit ={
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -258,9 +275,27 @@ class Transform {
   }
 
   @Test
+  def richFlatMapFunc(): Unit ={
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val func = new RichFlatMapFunc()
+    env.fromElements("a b c","d,e,f")
+      .flatMap(func)
+      .print()
+  }
+
+  @Test
   def filterFunc(): Unit ={
     val env = ExecutionEnvironment.getExecutionEnvironment
     val func = new FilterFunc()
+    env.fromElements("ipad","apple","island")
+      .filter(func)
+      .print()
+  }
+
+  @Test
+  def richFilterFunc(): Unit ={
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val func = new RichFilterFunc()
     env.fromElements("ipad","apple","island")
       .filter(func)
       .print()
@@ -331,12 +366,5 @@ class Transform {
     stream.map(t=>(t._2,t._3))
       .print()
   }
-
-
-  
-
-
-
-
 
 }

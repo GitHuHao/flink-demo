@@ -2,7 +2,7 @@ package com.bigdata.flink.model
 
 import java.util.Properties
 
-import com.bigdata.flink.bean.{MetricSchema, Student}
+import com.bigdata.flink.bean.{Student}
 import com.bigdata.flink.sink.{ElasticSink, FailureHandler, MysqlSink, PrintSink}
 import com.bigdata.flink.source.MysqlSource
 import com.bigdata.flink.suit.CommonSuit

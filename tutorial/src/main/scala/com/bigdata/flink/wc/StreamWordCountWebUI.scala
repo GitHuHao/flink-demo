@@ -12,8 +12,8 @@ object StreamWordCountWebUI {
   // --host localhost --port 9000
   def main(args: Array[String]): Unit = {
     val params = ParameterTool.fromArgs(args)
-    val host = params.get("host")
-    val port = params.getInt("port")
+    val host = params.get("host","localhost")
+    val port = params.getInt("port",9000)
 
     val conf = new Configuration()
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf)

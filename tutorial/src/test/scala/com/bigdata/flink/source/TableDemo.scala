@@ -4,6 +4,7 @@ import com.bigdata.flink.func.StreamSourceMock
 import com.bigdata.flink.model.WaterSensor
 import com.bigdata.flink.suit.CommonSuit
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
+import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.table.api.Expressions.{$, lit}
 import org.apache.flink.table.api.{DataTypes, Session, Slide, Table, TableConfig, TableResult, Tumble}
@@ -705,8 +706,8 @@ class TableDemo {
     val table1 = tabEnv.executeSql(
       s"""
          |select id,
-         |DATE_FORMAT(TUMBLE_START(t,INTERVAL '10' SECOND),'yyyy-MM-dd HH:mm:ss') as window_start,
-         |DATE_FORMAT(TUMBLE_END(t,INTERVAL '10' SECOND),'yyyy-MM-dd HH:mm:ss') as window_end,
+         | DATE_FORMAT(TUMBLE_START(t,INTERVAL '10' SECOND),'yyyy-MM-dd HH:mm:ss') as window_start,
+         | DATE_FORMAT(TUMBLE_END(t,INTERVAL '10' SECOND),'yyyy-MM-dd HH:mm:ss') as window_end,
          |SUM(vc) as vc_sum
          |from sensor
          |group by id,TUMBLE(t,INTERVAL '10' SECOND)
